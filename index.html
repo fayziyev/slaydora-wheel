@@ -11,16 +11,16 @@
   html, body { margin:0; height:100%; background:var(--navy); color:var(--white);
     font-family:-apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif; overflow:hidden; user-select:none; }
   body { background:radial-gradient(120% 70% at 50% 75%, #3a6ff0 0%, #1b3896 35%, #0a1230 80%); }
-  #app { position:relative; height:100%; display:flex; flex-direction:column; align-items:center;
+  #app { position:relative; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:max(14px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
   h1 { margin:6px 0 2px; font-size:clamp(22px, 6.4vw, 30px); font-weight:900; letter-spacing:.5px; text-align:center; }
   h1 b { color:var(--yel); }
   .sub { color:var(--soft); font-size:14px; text-align:center; margin-bottom:6px; min-height:18px; }
-  .stage { position:relative; width:min(92vw, 62vh, 460px); aspect-ratio:1; margin:8px 0 4px; flex-shrink:0; }
+  .stage { position:relative; width:clamp(190px, min(92vw, calc(var(--vh, 100vh) - 330px)), 460px); aspect-ratio:1; margin:8px 0 4px; flex-shrink:0; }
   canvas#wheel { width:100%; height:100%; display:block; }
   .pointer { position:absolute; left:50%; top:-2%; width:13%; transform:translateX(-50%); transform-origin:50% 12%;
     filter:drop-shadow(0 3px 4px rgba(0,0,0,.45)); transition:transform .08s; z-index:3; }
-  .actions { width:min(92vw, 460px); display:flex; flex-direction:column; gap:10px; margin-top:auto; }
+  .actions { width:min(92vw, 460px); display:flex; flex-direction:column; gap:10px; margin-top:14px; }
   button { font:inherit; border:0; border-radius:16px; cursor:pointer; }
   .big { width:100%; padding:17px 12px; font-size:19px; font-weight:900; letter-spacing:.6px;
     background:linear-gradient(180deg, #ffd95a, #ffbf1f); color:#14245f; box-shadow:0 6px 0 #c48e00, 0 10px 24px rgba(0,0,0,.35); }
@@ -39,12 +39,25 @@
   canvas#fx { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:10; }
   .loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--navy);
     z-index:20; font-weight:800; font-size:18px; transition:opacity .3s; }
+  .info { position:absolute; top:max(12px, env(safe-area-inset-top)); left:14px; z-index:5; width:40px; height:40px;
+    border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:18px; }
+  .sheet { position:fixed; inset:0; z-index:30; display:none; align-items:flex-end; justify-content:center; background:rgba(0,0,0,.55); }
+  .sheet.on { display:flex; }
+  .sheet .box { width:min(100%, 520px); max-height:85%; overflow:auto; background:#13215a; border-radius:22px 22px 0 0;
+    padding:20px 18px max(20px, env(safe-area-inset-bottom)); animation:up .28s ease-out; }
+  @keyframes up { from { transform:translateY(100%) } to { transform:none } }
+  .sheet h2 { margin:0 0 12px; font-size:20px; font-weight:900; text-align:center; }
+  .sheet h3 { margin:14px 0 6px; font-size:15px; color:var(--yel); }
+  .sheet ul { margin:0; padding:0; list-style:none; }
+  .sheet li { padding:7px 0; font-size:15px; line-height:1.35; border-bottom:1px solid rgba(255,255,255,.08); }
+  .sheet .ghost { margin-top:14px; }
   .note { font-size:12px; color:var(--soft); text-align:center; opacity:.8; }
 </style>
 </head>
 <body>
 <div class="loading" id="loading">🎡 …</div>
 <div id="app">
+  <button class="info" id="info" aria-label="rules">ℹ️</button>
   <button class="mute" id="mute" aria-label="sound">🔊</button>
   <h1 id="title"></h1>
   <div class="sub" id="sub"></div>
@@ -60,6 +73,8 @@
     <div class="note" id="note"></div>
   </div>
 </div>
+<div class="sheet" id="sheet"><div class="box"><h2 id="rTitle"></h2><div id="rBody"></div>
+  <button class="ghost" id="rClose"></button></div></div>
 <canvas id="fx"></canvas>
 <script>
 (function () {
@@ -77,6 +92,13 @@
     uz: { title: "OMAD <b>G‘ILDIRAGI</b>", sub: "Bosing va sovg‘a yuting!", spin: "🎡 AYLANTIRISH", spinning: "Aylanmoqda…",
       claim: "🎁 SOVG‘ANI OLISH", friends: "👥 Do‘st chaqirish", close: "✕ Yopish", won: "Sizga tushdi:",
       note: "Sovg‘a botda saqlanadi va to‘lovda o‘zi qo‘llanadi", demo: "Bu sahifa Slaydora botidan ochiladi 🙂",
+      rules: "📋 Qoidalar", ok: "Tushunarli",
+      R: [["🎟 Aylantirish qanday olinadi", ["🎁 Birinchi aylantirish — bepul", "W📅 Har hafta — 1 ta bepul aylantirish",
+            "🛒 Har bir pullik buyurtmadan keyin — +1", "👥 Do‘stingiz havolangiz orqali kirib, birinchi marta pul to‘lab ish olsa — +1"]],
+          ["👥 Do‘st taklif qilish", ["🔁 Har bir do‘st faqat 1 marta hisoblanadi", "🎯 Ko‘pi bilan {c} ta aylantirish",
+            "⏳ Aylantirish do‘stingizning ishi tayyor bo‘lganda qo‘shiladi", "🚫 Bepul sovg‘a bilan olingan ish hisoblanmaydi"]],
+          ["🎁 Sovg‘alar", ["⏰ Sovg‘a {h} soat amal qiladi — shu vaqt ichida ishlating", "💳 To‘lov oynasida o‘zi qo‘llanadi",
+            "💰 +10 000 so‘m darhol balansga tushadi", "1️⃣ Bitta buyurtmaga bitta sovg‘a"]]],
       share: "Slaydora botida g‘ildirakni aylantir — kurs ishi, referat yoki taqdimot BEPUL tushishi mumkin! 🎡",
       L: { kurs: ["KURS ISHI", "BEPUL"], d50: ["−50%", "chegirma"], deck: ["TAQDIMOT", "BEPUL"], b10k: ["+10 000", "so‘m"],
         referat: ["REFERAT", "BEPUL"], pro: ["PRO", "oddiy narxda"], mustaqil: ["MUSTAQIL", "ish BEPUL"], d30: ["−30%", "chegirma"] },
@@ -85,6 +107,13 @@
     ru: { title: "КОЛЕСО <b>УДАЧИ</b>", sub: "Нажмите и выиграйте подарок!", spin: "🎡 КРУТИТЬ", spinning: "Крутится…",
       claim: "🎁 ЗАБРАТЬ ПОДАРОК", friends: "👥 Позвать друга", close: "✕ Закрыть", won: "Вам выпало:",
       note: "Подарок сохранится в боте и применится при оплате", demo: "Эта страница открывается из бота Slaydora 🙂",
+      rules: "📋 Правила", ok: "Понятно",
+      R: [["🎟 Как получить вращение", ["🎁 Первое вращение — бесплатно", "W📅 Каждую неделю — 1 бесплатное вращение",
+            "🛒 После каждой оплаченной работы — +1", "👥 Друг зашёл по вашей ссылке и впервые оплатил работу — +1"]],
+          ["👥 Приглашение друзей", ["🔁 Каждый друг засчитывается только 1 раз", "🎯 Максимум {c} вращений",
+            "⏳ Вращение начисляется, когда работа друга готова", "🚫 Работа, полученная бесплатно по подарку, не засчитывается"]],
+          ["🎁 Подарки", ["⏰ Подарок действует {h} ч — используйте вовремя", "💳 Применяется автоматически при оплате",
+            "💰 +10 000 сум сразу зачисляются на баланс", "1️⃣ Один подарок на один заказ"]]],
       share: "Крути колесо в боте Slaydora — курсовая, реферат или презентация могут выпасть БЕСПЛАТНО! 🎡",
       L: { kurs: ["КУРСОВАЯ", "БЕСПЛАТНО"], d50: ["−50%", "скидка"], deck: ["ПРЕЗЕНТ.", "БЕСПЛАТНО"], b10k: ["+10 000", "сум"],
         referat: ["РЕФЕРАТ", "БЕСПЛАТНО"], pro: ["PRO", "по цене обычной"], mustaqil: ["САМОСТ.", "БЕСПЛАТНО"], d30: ["−30%", "скидка"] },
@@ -98,6 +127,7 @@
   if (tg) {
     try { tg.ready(); tg.expand(); tg.setHeaderColor("#0a1230"); tg.setBackgroundColor("#0a1230"); } catch (e) {}
     try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
+    try { tg.MainButton && tg.MainButton.hide(); } catch (e) {}
   }
   function haptic(kind) {
     try {
@@ -141,15 +171,22 @@
       g.fillStyle = COLS[i]; g.fill();
       g.lineWidth = S * 0.006; g.strokeStyle = "#fff"; g.stroke();
     }
+    function fit(text, weight, size, min, maxW) {   // sektorga sig'guncha shriftni kichraytiradi
+      var f = size;
+      for (; f > min; f -= 0.001) {
+        g.font = weight + " " + Math.round(S * f) + "px Inter, -apple-system, Arial, sans-serif";
+        if (g.measureText(text).width <= maxW) break;
+      }
+    }
+    var rM = R * 0.72, rS = R * 0.55, half = Math.sin(SEG / 2) * 2;
     for (i = 0; i < N; i++) {
       var lab = T.L[SECTORS[i]], ang = -Math.PI / 2 + i * SEG;
-      g.save(); g.translate(cx, cx); g.rotate(ang);
-      g.fillStyle = DARK[COLS[i]] ? "#14245f" : "#fff"; g.textAlign = "right";
-      var f1 = Math.round(S * (lab[0].length > 8 ? 0.036 : lab[0].length > 7 ? 0.04 : 0.046));
-      g.font = "900 " + f1 + "px Inter, -apple-system, Arial, sans-serif"; g.textBaseline = "alphabetic";
-      g.fillText(lab[0], R * 0.93, -S * 0.004);
-      g.font = "600 " + Math.round(S * (lab[1].length > 10 ? 0.022 : lab[1].length > 8 ? 0.025 : 0.029)) + "px Inter, -apple-system, Arial, sans-serif";
-      g.textBaseline = "top"; g.fillText(lab[1], R * 0.93, S * 0.008);
+      g.save(); g.translate(cx, cx); g.rotate(ang + Math.PI / 2);   // sektor tepada bo'lsa — yozuv to'g'ri turadi
+      g.fillStyle = DARK[COLS[i]] ? "#14245f" : "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+      fit(lab[0], "900", 0.056, 0.03, rM * half * 0.86);
+      g.fillText(lab[0], 0, -rM);
+      fit(lab[1], "700", 0.033, 0.018, rS * half * 0.9);
+      g.fillText(lab[1], 0, -rS);
       g.restore();
     }
     return c;
@@ -283,10 +320,6 @@
       lit = Math.floor(now / 300) % 2;
       if (now - t0 < 60000) requestAnimationFrame(glow);
     })(t0);
-    if (tg && tg.MainButton) {   // Telegram'ning pastki katta tugmasi ham
-      try { tg.MainButton.setText(T.claim.replace(/^🎁\s*/, "")); tg.MainButton.color = "#ffcf3a"; tg.MainButton.textColor = "#14245f";
-        tg.MainButton.show(); tg.MainButton.onClick(claim); } catch (e) {}
-    }
   }
 
   function claim() {
@@ -306,7 +339,29 @@
     location.href = url;
   };
 
-  window.addEventListener("resize", size);
+  var H = (Q.get("h") || "48").replace(/[^0-9]/g, "") || "48", C = (Q.get("c") || "10").replace(/[^0-9]/g, "") || "10";
+  var WEEK = Q.get("w") !== "0";
+  $("rTitle").textContent = T.rules; $("rClose").textContent = T.ok;
+  T.R.forEach(function (sec) {
+    var h = document.createElement("h3"); h.textContent = sec[0]; $("rBody").appendChild(h);
+    var ul = document.createElement("ul");
+    sec[1].forEach(function (x) {
+      if (x.charAt(0) === "W") { if (!WEEK) return; x = x.slice(1); }
+      var li = document.createElement("li"); li.textContent = x.replace("{h}", H).replace("{c}", C); ul.appendChild(li);
+    });
+    $("rBody").appendChild(ul);
+  });
+  $("info").onclick = function () { haptic("light"); $("sheet").classList.add("on"); };
+  $("rClose").onclick = function () { $("sheet").classList.remove("on"); };
+  $("sheet").onclick = function (e) { if (e.target === this) this.classList.remove("on"); };
+
+  function setVh() {   // Telegram oynasining haqiqiy balandligi (kompyuterda oyna kichik)
+    var h = (tg && tg.viewportStableHeight) || window.innerHeight;
+    document.documentElement.style.setProperty("--vh", h + "px");
+  }
+  setVh();
+  if (tg && tg.onEvent) try { tg.onEvent("viewportChanged", function () { setVh(); size(); }); } catch (e) {}
+  window.addEventListener("resize", function () { setVh(); size(); });
   var go = function () {
     var l = $("loading");
     if (!l) return;
