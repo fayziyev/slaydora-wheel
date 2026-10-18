@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Slaydora — Omad g‘ildiragi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { --navy:#0a1230; --navy2:#1a3a90; --yel:#ffcf3a; --blue:#3370ff; --white:#fff; --soft:#c4d0f0; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:var(--navy); color:var(--white);
+    font-family:-apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif; overflow:hidden; user-select:none; }
+  body { background:radial-gradient(120% 70% at 50% 75%, #3a6ff0 0%, #1b3896 35%, #0a1230 80%); }
+  #app { position:relative; height:100%; display:flex; flex-direction:column; align-items:center;
+    padding:max(14px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+  h1 { margin:6px 0 2px; font-size:clamp(22px, 6.4vw, 30px); font-weight:900; letter-spacing:.5px; text-align:center; }
+  h1 b { color:var(--yel); }
+  .sub { color:var(--soft); font-size:14px; text-align:center; margin-bottom:6px; min-height:18px; }
+  .stage { position:relative; width:min(92vw, 62vh, 460px); aspect-ratio:1; margin:8px 0 4px; flex-shrink:0; }
+  canvas#wheel { width:100%; height:100%; display:block; }
+  .pointer { position:absolute; left:50%; top:-2%; width:13%; transform:translateX(-50%); transform-origin:50% 12%;
+    filter:drop-shadow(0 3px 4px rgba(0,0,0,.45)); transition:transform .08s; z-index:3; }
+  .actions { width:min(92vw, 460px); display:flex; flex-direction:column; gap:10px; margin-top:auto; }
+  button { font:inherit; border:0; border-radius:16px; cursor:pointer; }
+  .big { width:100%; padding:17px 12px; font-size:19px; font-weight:900; letter-spacing:.6px;
+    background:linear-gradient(180deg, #ffd95a, #ffbf1f); color:#14245f; box-shadow:0 6px 0 #c48e00, 0 10px 24px rgba(0,0,0,.35); }
+  .big:active { transform:translateY(3px); box-shadow:0 3px 0 #c48e00, 0 6px 14px rgba(0,0,0,.35); }
+  .big[disabled] { opacity:.6; }
+  .ghost { width:100%; padding:13px; font-size:15px; font-weight:700; background:rgba(255,255,255,.12); color:#fff; }
+  .row { display:flex; gap:10px; }
+  .row .ghost { flex:1; }
+  .prize { display:none; text-align:center; background:rgba(10,18,48,.78); border:1px solid rgba(255,255,255,.18);
+    border-radius:18px; padding:12px 14px; width:min(92vw, 460px); animation:pop .45s cubic-bezier(.2,1.6,.4,1); }
+  .prize .t { font-size:15px; color:var(--soft); }
+  .prize .v { font-size:clamp(20px, 6vw, 26px); font-weight:900; color:var(--yel); margin-top:2px; }
+  @keyframes pop { from { transform:scale(.6); opacity:0 } to { transform:scale(1); opacity:1 } }
+  .mute { position:absolute; top:max(12px, env(safe-area-inset-top)); right:14px; z-index:5; width:40px; height:40px;
+    border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:18px; }
+  canvas#fx { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:10; }
+  .loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--navy);
+    z-index:20; font-weight:800; font-size:18px; transition:opacity .3s; }
+  .note { font-size:12px; color:var(--soft); text-align:center; opacity:.8; }
+</style>
+</head>
+<body>
+<div class="loading" id="loading">🎡 …</div>
+<div id="app">
+  <button class="mute" id="mute" aria-label="sound">🔊</button>
+  <h1 id="title"></h1>
+  <div class="sub" id="sub"></div>
+  <div class="stage">
+    <svg class="pointer" id="pointer" viewBox="0 0 64 78"><path d="M2 2 H62 L32 76 Z" fill="#fff"/><path d="M11 8 H53 L32 62 Z" fill="#ff4650"/></svg>
+    <canvas id="wheel"></canvas>
+  </div>
+  <div class="prize" id="prize"><div class="t" id="prizeT"></div><div class="v" id="prizeV"></div></div>
+  <div class="actions">
+    <button class="big" id="spin"></button>
+    <button class="big" id="claim" style="display:none"></button>
+    <div class="row"><button class="ghost" id="friends"></button><button class="ghost" id="close"></button></div>
+    <div class="note" id="note"></div>
+  </div>
+</div>
+<canvas id="fx"></canvas>
+<script>
+(function () {
+  "use strict";
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var Q = new URLSearchParams(location.search);
+  var LANG = Q.get("l") === "ru" ? "ru" : "uz";
+  var PRIZE = Q.get("p") || "";
+  var GID = (Q.get("g") || "").replace(/[^0-9]/g, "");
+  var BOT = (Q.get("b") || "slaydora_uz_bot").replace(/[^A-Za-z0-9_]/g, "");
+  var SECTORS = ["kurs", "d50", "deck", "b10k", "referat", "pro", "mustaqil", "d30"];
+  var COLS = ["#ffcf3a", "#3370ff", "#26c46e", "#162c78", "#ff785a", "#5b4cdc", "#ffa03c", "#2140a0"];
+  var DARK = { "#ffcf3a": 1, "#ffa03c": 1 };
+  var T = {
+    uz: { title: "OMAD <b>G‘ILDIRAGI</b>", sub: "Bosing va sovg‘a yuting!", spin: "🎡 AYLANTIRISH", spinning: "Aylanmoqda…",
+      claim: "🎁 SOVG‘ANI OLISH", friends: "👥 Do‘st chaqirish", close: "✕ Yopish", won: "Sizga tushdi:",
+      note: "Sovg‘a botda saqlanadi va to‘lovda o‘zi qo‘llanadi", demo: "Bu sahifa Slaydora botidan ochiladi 🙂",
+      share: "Slaydora botida g‘ildirakni aylantir — kurs ishi, referat yoki taqdimot BEPUL tushishi mumkin! 🎡",
+      L: { kurs: ["KURS ISHI", "BEPUL"], d50: ["−50%", "chegirma"], deck: ["TAQDIMOT", "BEPUL"], b10k: ["+10 000", "so‘m"],
+        referat: ["REFERAT", "BEPUL"], pro: ["PRO", "oddiy narxda"], mustaqil: ["MUSTAQIL", "ish BEPUL"], d30: ["−30%", "chegirma"] },
+      P: { kurs: "🎓 Kurs ishi BEPUL!", d50: "💥 −50% chegirma!", deck: "📊 Taqdimot BEPUL!", b10k: "💰 +10 000 so‘m!",
+        referat: "📝 Referat BEPUL!", pro: "💎 Pro — oddiy narxda!", mustaqil: "📄 Mustaqil ish BEPUL!", d30: "🔥 −30% chegirma!" } },
+    ru: { title: "КОЛЕСО <b>УДАЧИ</b>", sub: "Нажмите и выиграйте подарок!", spin: "🎡 КРУТИТЬ", spinning: "Крутится…",
+      claim: "🎁 ЗАБРАТЬ ПОДАРОК", friends: "👥 Позвать друга", close: "✕ Закрыть", won: "Вам выпало:",
+      note: "Подарок сохранится в боте и применится при оплате", demo: "Эта страница открывается из бота Slaydora 🙂",
+      share: "Крути колесо в боте Slaydora — курсовая, реферат или презентация могут выпасть БЕСПЛАТНО! 🎡",
+      L: { kurs: ["КУРСОВАЯ", "БЕСПЛАТНО"], d50: ["−50%", "скидка"], deck: ["ПРЕЗЕНТ.", "БЕСПЛАТНО"], b10k: ["+10 000", "сум"],
+        referat: ["РЕФЕРАТ", "БЕСПЛАТНО"], pro: ["PRO", "по цене обычной"], mustaqil: ["САМОСТ.", "БЕСПЛАТНО"], d30: ["−30%", "скидка"] },
+      P: { kurs: "🎓 Курсовая БЕСПЛАТНО!", d50: "💥 Скидка −50%!", deck: "📊 Презентация БЕСПЛАТНО!", b10k: "💰 +10 000 сум!",
+        referat: "📝 Реферат БЕСПЛАТНО!", pro: "💎 Pro по цене обычной!", mustaqil: "📄 Самостоятельная БЕСПЛАТНО!", d30: "🔥 Скидка −30%!" } }
+  }[LANG];
+  var $ = function (id) { return document.getElementById(id); };
+  var VALID = SECTORS.indexOf(PRIZE) >= 0 && GID;
+
+  // ---------- Telegram
+  if (tg) {
+    try { tg.ready(); tg.expand(); tg.setHeaderColor("#0a1230"); tg.setBackgroundColor("#0a1230"); } catch (e) {}
+    try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
+  }
+  function haptic(kind) {
+    try {
+      if (!tg || !tg.HapticFeedback) return;
+      if (kind === "success") tg.HapticFeedback.notificationOccurred("success");
+      else tg.HapticFeedback.impactOccurred(kind || "light");
+    } catch (e) {}
+  }
+
+  // ---------- matnlar
+  document.documentElement.lang = LANG;
+  $("title").innerHTML = T.title;
+  $("sub").textContent = VALID ? T.sub : T.demo;
+  $("spin").textContent = T.spin;
+  $("claim").textContent = T.claim;
+  $("friends").textContent = T.friends;
+  $("close").textContent = T.close;
+  $("note").textContent = T.note;
+  $("prizeT").textContent = T.won;
+
+  // ---------- g'ildirak
+  var cv = $("wheel"), ctx = cv.getContext("2d");
+  var N = SECTORS.length, SEG = 2 * Math.PI / N;
+  var angle = Math.random() * 2 * Math.PI;      // aylanish burchagi (soat yo'nalishi bo'yicha)
+  var lit = 0, face = null;
+
+  function size() {
+    var r = cv.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 3);
+    cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+    face = buildFace(cv.width);
+    draw();
+  }
+
+  function buildFace(S) {
+    // sektorlar va yozuvlar bir marta chiziladi, keyin faqat aylantiriladi (tez ishlaydi)
+    var c = document.createElement("canvas"); c.width = c.height = S;
+    var g = c.getContext("2d"), R = S * 0.43, cx = S / 2;
+    for (var i = 0; i < N; i++) {
+      var a0 = -Math.PI / 2 + i * SEG - SEG / 2;
+      g.beginPath(); g.moveTo(cx, cx); g.arc(cx, cx, R, a0, a0 + SEG); g.closePath();
+      g.fillStyle = COLS[i]; g.fill();
+      g.lineWidth = S * 0.006; g.strokeStyle = "#fff"; g.stroke();
+    }
+    for (i = 0; i < N; i++) {
+      var lab = T.L[SECTORS[i]], ang = -Math.PI / 2 + i * SEG;
+      g.save(); g.translate(cx, cx); g.rotate(ang);
+      g.fillStyle = DARK[COLS[i]] ? "#14245f" : "#fff"; g.textAlign = "right";
+      var f1 = Math.round(S * (lab[0].length > 8 ? 0.036 : lab[0].length > 7 ? 0.04 : 0.046));
+      g.font = "900 " + f1 + "px Inter, -apple-system, Arial, sans-serif"; g.textBaseline = "alphabetic";
+      g.fillText(lab[0], R * 0.93, -S * 0.004);
+      g.font = "600 " + Math.round(S * (lab[1].length > 10 ? 0.022 : lab[1].length > 8 ? 0.025 : 0.029)) + "px Inter, -apple-system, Arial, sans-serif";
+      g.textBaseline = "top"; g.fillText(lab[1], R * 0.93, S * 0.008);
+      g.restore();
+    }
+    return c;
+  }
+
+  function draw(glow) {
+    if (!face || !cv.width) return;   // hali o'lchami aniqlanmagan
+    var S = cv.width, cx = S / 2, R = S * 0.43;
+    ctx.clearRect(0, 0, S, S);
+    // tashqi halqa
+    ctx.beginPath(); ctx.arc(cx, cx, R + S * 0.045, 0, 2 * Math.PI); ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cx, R + S * 0.03, 0, 2 * Math.PI); ctx.fillStyle = "#122466"; ctx.fill();
+    ctx.save(); ctx.translate(cx, cx); ctx.rotate(angle); ctx.drawImage(face, -cx, -cx); ctx.restore();
+    if (glow) {   // yutgan sektor yonib turadi
+      ctx.save(); ctx.translate(cx, cx);
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      var a = -Math.PI / 2 - SEG / 2 + glow.off;
+      ctx.arc(0, 0, R, a, a + SEG); ctx.closePath();
+      ctx.fillStyle = "rgba(255,255,255," + glow.a + ")"; ctx.fill(); ctx.restore();
+    }
+    // chiroqchalar
+    for (var i = 0; i < 24; i++) {
+      var b = i * 2 * Math.PI / 24, x = cx + (R + S * 0.0375) * Math.cos(b), y = cx + (R + S * 0.0375) * Math.sin(b);
+      var on = (i + lit) % 2 === 0;
+      if (on) { ctx.beginPath(); ctx.arc(x, y, S * 0.017, 0, 2 * Math.PI); ctx.fillStyle = "rgba(255,230,120,.3)"; ctx.fill(); }
+      ctx.beginPath(); ctx.arc(x, y, S * 0.009, 0, 2 * Math.PI); ctx.fillStyle = on ? "#ffcf3a" : "rgba(255,255,255,.85)"; ctx.fill();
+    }
+    // markaz
+    ctx.beginPath(); ctx.arc(cx, cx, S * 0.13, 0, 2 * Math.PI); ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cx, S * 0.112, 0, 2 * Math.PI); ctx.fillStyle = "#122466"; ctx.fill();
+    ctx.fillStyle = "#ffcf3a"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "900 " + Math.round(S * 0.15) + "px Inter, -apple-system, Arial, sans-serif"; ctx.fillText("S", cx, cx + S * 0.008);
+  }
+
+  // ---------- ovoz
+  var audio = null, muted = false;
+  try { muted = localStorage.getItem("wh_mute") === "1"; } catch (e) {}
+  $("mute").textContent = muted ? "🔇" : "🔊";
+  function ac() { if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return audio; }
+  function tick(vol) {
+    if (muted) return; var a = ac(); if (!a) return;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = "square"; o.frequency.value = 1500 + Math.random() * 200;
+    g.gain.setValueAtTime(0.0001, a.currentTime); g.gain.exponentialRampToValueAtTime(0.08 * (vol || 1), a.currentTime + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.045);
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.05);
+  }
+  function fanfare() {
+    if (muted) return; var a = ac(); if (!a) return;
+    [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) {
+      var o = a.createOscillator(), g = a.createGain(), t0 = a.currentTime + i * 0.11;
+      o.type = "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+      o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + 0.4);
+    });
+  }
+  $("mute").onclick = function () {
+    muted = !muted; $("mute").textContent = muted ? "🔇" : "🔊";
+    try { localStorage.setItem("wh_mute", muted ? "1" : "0"); } catch (e) {}
+  };
+
+  // ---------- konfetti
+  var fx = $("fx"), fctx = fx.getContext("2d"), parts = [];
+  function confetti() {
+    var d = window.devicePixelRatio || 1; fx.width = innerWidth * d; fx.height = innerHeight * d;
+    var colors = ["#ffcf3a", "#ff5a6e", "#50c878", "#5a96ff", "#ffffff", "#ff9f40"];
+    for (var i = 0; i < 160; i++) parts.push({ x: Math.random() * fx.width, y: -Math.random() * fx.height * 0.6,
+      vx: (Math.random() - .5) * 4 * d, vy: (2 + Math.random() * 4) * d, r: Math.random() * 6.28, vr: (Math.random() - .5) * .3,
+      w: (6 + Math.random() * 6) * d, h: (3 + Math.random() * 4) * d, c: colors[i % colors.length] });
+    var t0 = performance.now();
+    (function frame(t) {
+      fctx.clearRect(0, 0, fx.width, fx.height);
+      parts.forEach(function (p) {
+        p.x += p.vx + Math.sin((t + p.y) / 300) * d; p.y += p.vy; p.vy += 0.04 * d; p.r += p.vr;
+        fctx.save(); fctx.translate(p.x, p.y); fctx.rotate(p.r); fctx.fillStyle = p.c;
+        fctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); fctx.restore();
+      });
+      if (t - t0 < 4500) requestAnimationFrame(frame); else fctx.clearRect(0, 0, fx.width, fx.height);
+    })(t0);
+  }
+
+  // ---------- aylantirish
+  var spinning = false, done = false, idle = true;
+  (function idleSpin() {   // aylantirishdan oldin sekin aylanib turadi
+    if (!idle) return;
+    angle += 0.0025; lit = Math.floor(performance.now() / 500) % 2; draw();
+    requestAnimationFrame(idleSpin);
+  })();
+
+  function spin() {
+    if (spinning || done) return;
+    if (!VALID) { if (tg) tg.close(); return; }
+    ac(); if (audio && audio.state === "suspended") audio.resume();
+    spinning = true; idle = false;
+    $("spin").disabled = true; $("spin").textContent = T.spinning;
+    haptic("medium");
+    var target = SECTORS.indexOf(PRIZE);
+    var off = (Math.random() - .5) * SEG * 0.62;               // sektorning turli joyida to'xtaydi
+    var final = -target * SEG + off;
+    var start = angle % (2 * Math.PI);
+    var total = ((final - start) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) + 2 * Math.PI * 6;
+    var D = 5200, t0 = performance.now(), lastSeg = null, ptr = $("pointer");
+    function ease(x) { return 1 - Math.pow(1 - x, 4); }
+    (function frame(now) {
+      var k = Math.min(1, (now - t0) / D);
+      angle = start + total * ease(k);
+      lit = Math.floor(now / (k < 1 ? 90 : 300)) % 2;
+      var seg = Math.floor((angle + SEG / 2) / SEG);
+      if (lastSeg !== null && seg !== lastSeg) {               // ko'rsatkich sektor chegarasidan o'tdi
+        tick(1 - k * 0.5); haptic("light");
+        ptr.style.transform = "translateX(-50%) rotate(-18deg)";
+        setTimeout(function () { ptr.style.transform = "translateX(-50%)"; }, 70);
+      }
+      lastSeg = seg;
+      draw();
+      if (k < 1) requestAnimationFrame(frame); else finish(off);
+    })(t0);
+  }
+
+  function finish(off) {
+    spinning = false; done = true;
+    haptic("success"); fanfare(); confetti();
+    $("prizeV").textContent = T.P[PRIZE] || PRIZE;
+    $("prize").style.display = "block";
+    $("spin").style.display = "none";
+    $("claim").style.display = "block";
+    var t0 = performance.now();
+    (function glow(now) {
+      draw({ off: off, a: 0.18 + 0.18 * Math.sin((now - t0) / 140) });
+      lit = Math.floor(now / 300) % 2;
+      if (now - t0 < 60000) requestAnimationFrame(glow);
+    })(t0);
+    if (tg && tg.MainButton) {   // Telegram'ning pastki katta tugmasi ham
+      try { tg.MainButton.setText(T.claim.replace(/^🎁\s*/, "")); tg.MainButton.color = "#ffcf3a"; tg.MainButton.textColor = "#14245f";
+        tg.MainButton.show(); tg.MainButton.onClick(claim); } catch (e) {}
+    }
+  }
+
+  function claim() {
+    haptic("medium");
+    var link = "https://t.me/" + BOT + "?start=whd_" + GID;
+    try { if (tg) { tg.openTelegramLink(link); setTimeout(function () { tg.close(); }, 400); return; } } catch (e) {}
+    location.href = link;
+  }
+
+  $("spin").onclick = spin;
+  $("claim").onclick = claim;
+  $("close").onclick = function () { if (done) claim(); else if (tg) tg.close(); else history.back(); };
+  $("friends").onclick = function () {
+    var link = "https://t.me/" + BOT + (Q.get("u") ? "?start=r" + Q.get("u").replace(/[^0-9]/g, "") : "");
+    var url = "https://t.me/share/url?url=" + encodeURIComponent(link) + "&text=" + encodeURIComponent(T.share);
+    try { if (tg) { tg.openTelegramLink(url); return; } } catch (e) {}
+    location.href = url;
+  };
+
+  window.addEventListener("resize", size);
+  var go = function () {
+    var l = $("loading");
+    if (!l) return;
+    try { size(); } catch (e) {}
+    l.style.opacity = 0; l.id = ""; setTimeout(function () { l.remove(); }, 300);
+  };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  setTimeout(function () { if (document.getElementById("loading")) go(); }, 1500);
+})();
+</script>
+</body>
+</html>
