@@ -85,7 +85,7 @@
   var PRIZE = Q.get("p") || "";
   var GID = (Q.get("g") || "").replace(/[^0-9]/g, "");
   var BOT = (Q.get("b") || "slaydora_uz_bot").replace(/[^A-Za-z0-9_]/g, "");
-  var SECTORS = ["kurs", "d50", "deck", "b10k", "referat", "pro", "mustaqil", "d30"];
+  var SECTORS = ["b7777", "o_deck", "d30", "maqol", "o_ref", "pro", "d50", "o_must"];
   var COLS = ["#ffcf3a", "#3370ff", "#26c46e", "#162c78", "#ff785a", "#5b4cdc", "#ffa03c", "#2140a0"];
   var DARK = { "#ffcf3a": 1, "#ffa03c": 1 };
   var T = {
@@ -98,12 +98,12 @@
           ["👥 Do‘st taklif qilish", ["🔁 Har bir do‘st faqat 1 marta hisoblanadi", "🎯 Ko‘pi bilan {c} ta aylantirish",
             "⏳ Aylantirish do‘stingizning ishi tayyor bo‘lganda qo‘shiladi", "🚫 Bepul sovg‘a bilan olingan ish hisoblanmaydi"]],
           ["🎁 Sovg‘alar", ["⏰ Sovg‘a {h} soat amal qiladi — shu vaqt ichida ishlating", "💳 To‘lov oynasida o‘zi qo‘llanadi",
-            "💰 +10 000 so‘m darhol balansga tushadi", "1️⃣ Bitta buyurtmaga bitta sovg‘a"]]],
-      share: "Slaydora botida g‘ildirakni aylantir — kurs ishi, referat yoki taqdimot BEPUL tushishi mumkin! 🎡",
-      L: { kurs: ["KURS ISHI", "BEPUL"], d50: ["−50%", "chegirma"], deck: ["TAQDIMOT", "BEPUL"], b10k: ["+10 000", "so‘m"],
-        referat: ["REFERAT", "BEPUL"], pro: ["PRO", "oddiy narxda"], mustaqil: ["MUSTAQIL", "ish BEPUL"], d30: ["−30%", "chegirma"] },
-      P: { kurs: "🎓 Kurs ishi BEPUL!", d50: "💥 −50% chegirma!", deck: "📊 Taqdimot BEPUL!", b10k: "💰 +10 000 so‘m!",
-        referat: "📝 Referat BEPUL!", pro: "💎 Pro — oddiy narxda!", mustaqil: "📄 Mustaqil ish BEPUL!", d30: "🔥 −30% chegirma!" } },
+            "💰 +7 777 so‘m bonus darhol balansga tushadi — {h} soatda ishlatilmasa kuyadi", "1️⃣ Bitta buyurtmaga bitta sovg‘a"]]],
+      share: "Slaydora botida g‘ildirakni aylantir — balansga 7 777 so‘m yoki 2 900 so‘mlik taqdimot tushishi mumkin! 🎡",
+      L: { b7777: ["+7 777", "so‘m bonus"], o_deck: ["TAQDIMOT", "2 900 so‘m"], d30: ["−30%", "chegirma"], maqol: ["MAQOL", "hikmat"],
+        o_ref: ["REFERAT", "1 990 so‘m"], pro: ["PRO", "oddiy narxda"], d50: ["−50%", "chegirma"], o_must: ["MUSTAQIL", "1 990 so‘m"] },
+      P: { b7777: "💰 +7 777 so‘m bonus!", o_deck: "📊 Taqdimot — 2 900 so‘m!", d30: "🔥 −30% chegirma!", maqol: "📜 Hikmatli maqol",
+        o_ref: "📝 Referat — 1 990 so‘m!", pro: "💎 Pro — oddiy narxda!", d50: "💥 −50% chegirma!", o_must: "📄 Mustaqil ish — 1 990 so‘m!" } },
     ru: { title: "КОЛЕСО <b>УДАЧИ</b>", sub: "Нажмите и выиграйте подарок!", spin: "🎡 КРУТИТЬ", spinning: "Крутится…",
       claim: "🎁 ЗАБРАТЬ ПОДАРОК", friends: "👥 Позвать друга", close: "✕ Закрыть", won: "Вам выпало:",
       note: "Подарок сохранится в боте и применится при оплате", demo: "Эта страница открывается из бота Slaydora 🙂",
@@ -113,12 +113,12 @@
           ["👥 Приглашение друзей", ["🔁 Каждый друг засчитывается только 1 раз", "🎯 Максимум {c} вращений",
             "⏳ Вращение начисляется, когда работа друга готова", "🚫 Работа, полученная бесплатно по подарку, не засчитывается"]],
           ["🎁 Подарки", ["⏰ Подарок действует {h} ч — используйте вовремя", "💳 Применяется автоматически при оплате",
-            "💰 +10 000 сум сразу зачисляются на баланс", "1️⃣ Один подарок на один заказ"]]],
-      share: "Крути колесо в боте Slaydora — курсовая, реферат или презентация могут выпасть БЕСПЛАТНО! 🎡",
-      L: { kurs: ["КУРСОВАЯ", "БЕСПЛАТНО"], d50: ["−50%", "скидка"], deck: ["ПРЕЗЕНТ.", "БЕСПЛАТНО"], b10k: ["+10 000", "сум"],
-        referat: ["РЕФЕРАТ", "БЕСПЛАТНО"], pro: ["PRO", "по цене обычной"], mustaqil: ["САМОСТ.", "БЕСПЛАТНО"], d30: ["−30%", "скидка"] },
-      P: { kurs: "🎓 Курсовая БЕСПЛАТНО!", d50: "💥 Скидка −50%!", deck: "📊 Презентация БЕСПЛАТНО!", b10k: "💰 +10 000 сум!",
-        referat: "📝 Реферат БЕСПЛАТНО!", pro: "💎 Pro по цене обычной!", mustaqil: "📄 Самостоятельная БЕСПЛАТНО!", d30: "🔥 Скидка −30%!" } }
+            "💰 +7 777 сум бонуса сразу на баланс — сгорят через {h} ч, если не использовать", "1️⃣ Один подарок на один заказ"]]],
+      share: "Крути колесо в боте Slaydora — 7 777 сум на баланс или презентация за 2 900 сум! 🎡",
+      L: { b7777: ["+7 777", "сум бонус"], o_deck: ["ПРЕЗЕНТ.", "2 900 сум"], d30: ["−30%", "скидка"], maqol: ["МУДРОСТЬ", "пословица"],
+        o_ref: ["РЕФЕРАТ", "1 990 сум"], pro: ["PRO", "по цене обычной"], d50: ["−50%", "скидка"], o_must: ["САМОСТ.", "1 990 сум"] },
+      P: { b7777: "💰 +7 777 сум бонуса!", o_deck: "📊 Презентация — 2 900 сум!", d30: "🔥 Скидка −30%!", maqol: "📜 Мудрая пословица",
+        o_ref: "📝 Реферат — 1 990 сум!", pro: "💎 Pro по цене обычной!", d50: "💥 Скидка −50%!", o_must: "📄 Самостоятельная — 1 990 сум!" } }
   }[LANG];
   var $ = function (id) { return document.getElementById(id); };
   var VALID = SECTORS.indexOf(PRIZE) >= 0 && GID;
